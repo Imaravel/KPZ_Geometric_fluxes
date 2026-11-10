@@ -1,0 +1,6 @@
+flux,order,D,beta,beta_pred,maxslope,ndiv,note
+curvature,2,0.08,0.22103622066721174,0.25,1.3556887495520376,0,curve shortening + non-conserved noise (EW)
+poly1,4,0.08,0.16177518974485444,0.125,1.4227200940660896,0,"surface diffusion, H^{-1}"
+poly2,6,0.08,0.40326396647986906,0.25,5.2787325183002825,0,H^{-2} flow of length
+poly2,6,0.02,0.27078670625002643,0.25,0.7321491205130588,0,"H^{-2}, weaker noise"
+poly3,8,0.02,0.3663724057443602,0.3125,1.3863501272497651,0,H^{-3} flow of length
