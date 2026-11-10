@@ -201,6 +201,7 @@ println("EXPERIMENT C - is lambda still kinematic at 6th order?  tilt-velocity, 
 println("="^92)
 ms = [0.0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9]
 rowsC = Any[]
+rowsCt = Any[]                       # raw V(m) points, plotted in Fig. 2(c)
 for (kind, D) in ((:curvature, D0), (:elastica, 0.02), (:fam2, 0.02), (:fam2, 0.005))
     Vs = Float64[]
     for mm in ms
@@ -215,6 +216,7 @@ for (kind, D) in ((:curvature, D0), (:elastica, 0.02), (:fam2, 0.02), (:fam2, 0.
     @printf("%-12s D=%-6.3f a2=%-8.4f a4=%-9.4f  lambda_meas=%-7.3f lambda_pred=%.3f\n",
             String(kind), D, c[1], c[2], 2c[1], V0)
     push!(rowsC, [String(kind), D, c[1], c[2], 2c[1], V0])
+    for (mm, v) in zip(ms, dV); push!(rowsCt, [String(kind), D, mm, v]); end
 end
 
 println()
@@ -243,5 +245,6 @@ dump(f,hdr,rs) = writedlm(joinpath(out,f), vcat(permutedims(hdr), reduce(vcat, p
 dump("article_polyA.csv", ["flux","order","D","beta","beta_pred","maxslope","ndiv","note"], rowsA)
 dump("article_polyB.csv", ["flux","order","v0","D","beta","beta_pred","maxslope","ndiv","note"], rowsB)
 isempty(rowsC) || dump("article_polyC.csv", ["flux","D","a2","a4","lambda_meas","lambda_pred"], rowsC)
+isempty(rowsCt) || dump("article_polyC_tilt.csv", ["flux","D","m","dV"], rowsCt)
 dump("article_polyD.csv", ["flux","order","D","nsurv","t_div"], rowsD)
-println("\nwrote data/article_poly{A,B,C,D}.csv")
+println("\nwrote data/article_poly{A,B,C,D}.csv and data/article_polyC_tilt.csv")

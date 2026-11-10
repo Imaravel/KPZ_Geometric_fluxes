@@ -279,19 +279,32 @@ end
 # Figure: four panels, one per experiment.
 # ─────────────────────────────────────────────────────────────────────────────
 const FLOWNAME = Dict(:curvature => "curvature", :helfrich => "tension + bending",
-                      :pflow_15 => L"$p$-flow, $p=1.5$")
+                      :pflow_15 => L"$p$-flow, $p=1.5$", :elastica => "elastica",
+                      :fam2 => "sixth order")
+# Each flow keeps one colour AND one marker in every panel, so that no panel
+# distinguishes the flows by colour alone.
+const FLOWMARK = Dict(:curvature => :circle, :helfrich => :diamond,
+                      :elastica => :utriangle, :fam2 => :rect)
 gref(ts, W, t0, b) = (W[argmin(abs.(ts .- t0))] .* (ts ./ t0).^b)
 
 pa = plot(xscale=:log10, yscale=:log10, xlabel=L"t", ylabel=L"W(t)",
+          yticks=([0.3, 0.5, 1.0], ["0.3", "0.5", "1"]),
           title="(a)", titleloc=:left, titlefontsize=10, legend=:bottomright, legendfontsize=6)
-for (key, lab, c, ls) in (("curvature_v3.0", "curvature, "*L"v_0=3", C_KPZ, :solid),
-                          ("curvature_v0.0", "curvature, "*L"v_0=0", C_KPZ, :dash),
-                          ("helfrich_v3.0",  "tension + bending, "*L"v_0=3", C_EXA, :solid),
-                          ("helfrich_v0.0",  "tension + bending, "*L"v_0=0", C_EXA, :dash))
+for (key, kind, v0lab, c, ls, off) in (("curvature_v3.0", :curvature, "3", C_KPZ, :solid, 0),
+                                       ("curvature_v0.0", :curvature, "0", C_KPZ, :dash,  1),
+                                       ("helfrich_v3.0",  :helfrich,  "3", C_EXA, :solid, 2),
+                                       ("helfrich_v0.0",  :helfrich,  "0", C_EXA, :dash,  3))
     haskey(CURVES, key) || continue
     ts, W = CURVES[key]; isempty(ts) && continue
     m = ts .>= 1.0
-    plot!(pa, ts[m], W[m], c=c, ls=ls, lw=1.7, label=lab)
+    plot!(pa, ts[m], W[m], c=c, ls=ls, lw=1.7, label="")
+    # markers on a staggered log grid, so that the four curves do not overlap
+    tm = 10 .^ range(0.1 + 0.06off, log10(TMAX) - 0.1, step=0.3)
+    im = [argmin(abs.(ts .- t)) for t in tm]
+    mc = v0lab == "0" ? :white : c                   # hollow markers: no growth
+    scatter!(pa, ts[im], W[im], mc=mc, msc=c, msw=1.2, m=FLOWMARK[kind], ms=3.5, label="")
+    plot!(pa, [NaN], [NaN], c=c, ls=ls, lw=1.7, m=FLOWMARK[kind], mc=mc, msc=c, msw=1.2,
+          ms=3.5, label=FLOWNAME[kind]*", "*latexstring("v_0=$v0lab"))
 end
 let (ts, W) = CURVES["curvature_v3.0"]
     m = (ts .>= TFIT) .& (ts .<= TMAX)
@@ -302,21 +315,34 @@ end
 As = [0.0, 1/6, 1/3, 1/2]
 pb = plot(xlabel=L"anisotropy $A$", ylabel=L"\beta",
           title="(b)", titleloc=:left, titlefontsize=10, legend=:topright, legendfontsize=6)
-for (kind, c) in ((:curvature, C_KPZ), (:helfrich, C_EXA))
+for (kind, c, ls) in ((:curvature, C_KPZ, :dash), (:helfrich, C_EXA, :dashdot))
     bs = [beta_fit(CURVES["$(kind)_A$(round(A,digits=3))"]...) for A in As]
-    plot!(pb, As, bs, c=c, lw=1.8, m=:circle, ms=4, label=FLOWNAME[kind])
+    plot!(pb, As, bs, c=c, lw=1.8, m=FLOWMARK[kind], ms=4, label=FLOWNAME[kind])
     ew = beta_fit(CURVES["$(kind)_v0.0"]...)
-    hline!(pb, [ew], c=c, ls=:dash, lw=1.1, label=FLOWNAME[kind]*", "*L"v_0=0")
+    hline!(pb, [ew], c=c, ls=ls, lw=1.1, label=FLOWNAME[kind]*", "*L"v_0=0")
 end
 vline!(pb, [1/3], c=:black, ls=:dot, lw=1.4, label=L"A=1/3\ (\lambda=0)")
 
 pc = plot(xlabel=L"tilt $m$", ylabel=L"V(m)-V(0)",
           title="(c)", titleloc=:left, titlefontsize=10, legend=:topleft, legendfontsize=6)
-for (kind, c, mk) in ((:curvature, C_KPZ, :circle), (:helfrich, C_EXA, :diamond),
-                      (:pflow_15, "#009E73", :utriangle))
+for (kind, c) in ((:curvature, C_KPZ), (:helfrich, C_EXA))
     k = "tilt_$(kind)_A0.0"; haskey(CURVES, k) || continue
     ms_, dV = CURVES[k]
-    scatter!(pc, ms_, dV, c=c, m=mk, ms=5, label=FLOWNAME[kind])
+    scatter!(pc, ms_, dV, c=c, m=FLOWMARK[kind], ms=5, label=FLOWNAME[kind])
+end
+# Fourth- and sixth-order points come from article_polyflows.jl (run it first).
+let f = joinpath(@__DIR__, "..", "data", "article_polyC_tilt.csv")
+    if isfile(f)
+        T = readdlm(f, ',', Any; header=true)[1]
+        for (kind, D, c) in ((:elastica, 0.02, "#009E73"), (:fam2, 0.005, "#CC79A7"))
+            r = [i for i in axes(T, 1) if T[i, 1] == String(kind) && T[i, 2] ≈ D]
+            isempty(r) && continue
+            scatter!(pc, Float64.(T[r, 3]), Float64.(T[r, 4]), c=c, m=FLOWMARK[kind], ms=4,
+                     label=FLOWNAME[kind])
+        end
+    else
+        @warn "data/article_polyC_tilt.csv not found: run scripts/article_polyflows.jl first"
+    end
 end
 let mm = range(0, 0.9, length=100)
     plot!(pc, mm, V0 .* (sqrt.(1 .+ mm.^2) .- 1), c=:black, ls=:dot, lw=1.5,
@@ -327,9 +353,9 @@ end
 Ds = unique(Float64[r[2] for r in rows4])
 pd = plot(xlabel=L"noise strength $D$", ylabel="fraction of runs surviving",
           title="(d)", titleloc=:left, titlefontsize=10, legend=:bottomleft, legendfontsize=6, ylims=(-0.05,1.15))
-for (kind, c, mk) in (("curvature", C_KPZ, :circle), ("helfrich", C_EXA, :diamond))
+for (kind, c) in (("curvature", C_KPZ), ("helfrich", C_EXA))
     fr = [Float64(r[3])/4 for r in rows4 if r[1] == kind]
-    plot!(pd, Ds, fr, c=c, lw=1.8, m=mk, ms=5, label=FLOWNAME[Symbol(kind)])
+    plot!(pd, Ds, fr, c=c, lw=1.8, m=FLOWMARK[Symbol(kind)], ms=5, label=FLOWNAME[Symbol(kind)])
 end
 
 fig = plot(pa, pb, pc, pd, layout=(2,2), size=(980,760), left_margin=4Plots.mm,
